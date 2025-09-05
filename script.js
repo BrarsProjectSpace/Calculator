@@ -1,53 +1,86 @@
-// Select the display elements
-// "input" is where typed numbers/operators will show
-// "result" is where the evaluated result (=) will show
-const input = document.querySelector("#display .input");
+const display = document.querySelector("#display .input");
 const resultDisplay = document.querySelector("#display .result");
 
-// Select all calculator buttons
-const buttons = document.getElementsByTagName('button');
-
-// Store the current input string (what the user types)
 let currentInput = "";
+let lastResult = "";
+let justEvaluated = false; // flag to track if "=" was just pressed
 
-// Convert HTMLCollection (buttons) to array and loop through each button
-Array.from(buttons).forEach(button => {
-    button.addEventListener("click", () => {
-        // Get the value from the button (using its id attribute)
-        const value = button.id;
+function updateDisplay() {
+  display.textContent = currentInput;
+  resultDisplay.textContent = lastResult || "0";
+}
 
-        // --- Handle different button cases ---
+function handleInput(value) {
+  // Clear All
+  if (value === "C") {
+    currentInput = "";
+    lastResult = "";
+    justEvaluated = false;
+    updateDisplay();
+  }
 
-        // CASE 1: Clear All (C)
-        if (value === "C") {
-            currentInput = "";                   // reset the input
-            input.textContent = "";            // clear typed expression
-            resultDisplay.textContent = "";     // reset result to 0
-        }
+  // Clear Entry / Backspace
+  else if (value === "CE" || value === "Backspace") {
+    currentInput = currentInput.slice(0, -1);
+    updateDisplay();
+  }
 
-        // CASE 2: Clear Entry (CE → remove last character only)
-        else if (value === "CE") {
-            currentInput = currentInput.slice(0, -1);  // remove last char
-            input.textContent = currentInput;        // update expression display
-        }
+  // Equals (= or Enter)
+  else if (value === "=" || value === "Enter") {
+    try {
+      const result = eval(currentInput);
+      lastResult = result.toString();
+      currentInput = lastResult; // keep result for further ops
+      justEvaluated = true; // mark evaluation happened
+      updateDisplay();
+    } catch {
+      lastResult = "Error";
+      currentInput = "";
+      justEvaluated = false;
+      updateDisplay();
+    }
+  }
 
-        // CASE 3: Equal (= → evaluate expression)
-        else if (value === "=") {
-            try {
-                const result = eval(currentInput);     // evaluate safely
-                resultDisplay.textContent = result;    // show result
-                currentInput = result.toString();      // allow further operations
-            }
-            catch {
-                resultDisplay.textContent = "Error";   // invalid expression
-                currentInput = "";                     // reset input
-            }
-        }
+  // Numbers & operators
+  else {
+    if (justEvaluated) {
+      // If last action was "=", handle differently
+      if (["+", "-", "*", "/", "%"].includes(value)) {
+        // Continue calculation from result
+        currentInput = lastResult + value;
+      } else {
+        // Start a new calculation
+        currentInput = value;
+        lastResult = "";
+      }
+      justEvaluated = false;
+    } else {
+      // Normal typing
+      currentInput += value;
+    }
+    updateDisplay();
+  }
+}
 
-        // CASE 4: Any other button (numbers/operators)
-        else {
-            currentInput += value;                     // add pressed key to string
-            input.textContent = currentInput;        // show updated expression
-        }
-    });
+// ---- Button clicks ----
+Array.from(document.getElementsByTagName("button")).forEach(button => {
+  button.addEventListener("click", () => handleInput(button.id));
 });
+
+// ---- Keyboard input ----
+document.addEventListener("keydown", (event) => {
+  const key = event.key;
+
+  if (!isNaN(key) || ["+", "-", "*", "/", "%", "."].includes(key)) {
+    handleInput(key);
+  } else if (key === "Enter" || key === "=") {
+    handleInput("=");
+  } else if (key === "Backspace") {
+    handleInput("Backspace");
+  } else if (key.toUpperCase() === "C") {
+    handleInput("C");
+  }
+});
+
+// Init display
+updateDisplay();
